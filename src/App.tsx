@@ -10,38 +10,53 @@ import { VideoFeed } from "./components/VideoFeed";
 import { MyVideos } from "./components/MyVideos";
 import { MyTweets } from "./components/MyTweets";
 import { History } from "./components/History";
-import { UploadVideo } from "./components/UploadVideo"; // Added missing import
+import { UploadVideo } from "./components/UploadVideo";
 import { Login } from "./components/Login";
 import { Register } from "./components/Register";
+import { TweetFeed } from "./components/TweetFeed";
+import { ChannelProfile } from "./components/ChannelProfile";
+import { VideoPlayerProvider } from "./components/VideoPlayerContext";
+import { AccountSettings } from "./components/AccountSettings";
+import { TweetPlayerProvider } from "./context/TweetPlayerContext";
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Public Routes - No sidebar here */}
+        {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected Dashboard - AuthLayout checks verifyJWT */}
+        {/* Protected Dashboard 
+            We wrap EVERYTHING in VideoPlayerProvider here.
+            This ensures the Global Modal is inside the Router.
+        */}
         <Route
           path="/"
           element={
             <AuthLayout>
-              <SidebarLayout />
+              <TweetPlayerProvider>
+                <VideoPlayerProvider>
+                  <SidebarLayout />
+                </VideoPlayerProvider>
+              </TweetPlayerProvider>
             </AuthLayout>
           }
         >
-          {/* Use 'index' for the default route at '/' */}
+          {/* Default route */}
           <Route index element={<VideoFeed />} />
 
-          {/* Nested sub-routes - Render inside the Sidebar's <Outlet /> */}
+          {/* All these sub-routes can now call playVideo() safely */}
+          <Route path="tweets" element={<TweetFeed />} />
           <Route path="my-videos" element={<MyVideos />} />
           <Route path="my-tweets" element={<MyTweets />} />
           <Route path="upload" element={<UploadVideo />} />
           <Route path="history" element={<History />} />
+          <Route path="channel/:username" element={<ChannelProfile />} />
+          <Route path="settings" element={<AccountSettings />} />
         </Route>
 
-        {/* Catch-all: Redirect to home or login */}
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

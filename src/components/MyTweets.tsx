@@ -1,13 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../api/axios";
-import type { ApiResponse, PaginatedData } from "../types";
+import type { ApiResponse, PaginatedData, Tweet } from "../types";
 import { Trash2, MessageSquare, Clock, Pencil, X, Check } from "lucide-react";
 
-interface Tweet {
-  _id: string;
-  content: string;
-  createdAt: string;
-}
+
 
 export const MyTweets: React.FC = () => {
   const [tweets, setTweets] = useState<Tweet[]>([]);
@@ -133,6 +129,7 @@ export const MyTweets: React.FC = () => {
               {/* Action Buttons (Visible when not editing) */}
               {!editingId && (
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  
                   <button
                     onClick={() => {
                       setEditingId(tweet._id);

@@ -11,18 +11,53 @@ export const TweetFeed: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const { openTweet } = useTweetPlayer();
 
+    // src/components/TweetFeed.tsx
+
     const fetchAllTweets = useCallback(async () => {
         try {
             setLoading(true);
-            // Fetching a paginated list of tweets
-            const { data } = await api.get<ApiResponse<PaginatedData<Tweet>>>('/tweets?page=1&limit=10');
-            setTweets(data.data.docs);
-        } catch (err) {
-            console.error("Error fetching social feed:", err);
+            const { data } = await api.get("/tweets");
+
+            // Since you want data.data, we set it directly.
+            // We use || [] as a fallback to prevent the .map() error.
+            setTweets(data.data || []);
+        } catch (error) {
+            console.error("Error fetching tweets:", error);
+            setTweets([]);
         } finally {
             setLoading(false);
         }
     }, []);
+
+    const handleSyncTweet = (updatedTweet: Tweet) => {
+        setTweets(prev => prev.map(t =>
+            t._id === updatedTweet._id ? updatedTweet : t
+        ));
+    };
+
+    const handleToggleLike = async (e: React.MouseEvent, tweetId: string) => {
+        e.stopPropagation();
+        try {
+            const { data } = await api.post(`/likes/toggle/t/${tweetId}`);
+            if (data?.success) {
+                setTweets(prev => prev.map(t => {
+                    if (t._id === tweetId) {
+                        const newIsLiked = data.data.isLiked;
+                        return {
+                            ...t,
+                            isLiked: newIsLiked,
+                            likesCount: newIsLiked
+                                ? (t.likesCount || 0) + 1
+                                : Math.max(0, (t.likesCount || 0) - 1)
+                        };
+                    }
+                    return t;
+                }));
+            }
+        } catch (err) {
+            console.error("Like failed", err);
+        }
+    };
 
     useEffect(() => {
         fetchAllTweets();
@@ -48,10 +83,10 @@ export const TweetFeed: React.FC = () => {
 
             {/* Changed space-y-px to space-y-3 for a balanced gap */}
             <div className="flex flex-col space-y-3">
-                {tweets.map(tweet => (
+                {Array.isArray(tweets) && tweets.map(tweet => (
                     <div
                         key={tweet._id}
-                        onClick={() => openTweet(tweet)}
+                        onClick={() => openTweet(tweet, handleSyncTweet)}
                         className="bg-white p-5 cursor-pointer hover:bg-gray-50 transition-all group border border-gray-100 rounded-2xl shadow-sm"
                     >
                         <div className="flex gap-3">
@@ -79,17 +114,22 @@ export const TweetFeed: React.FC = () => {
                                     {tweet.content}
                                 </p>
                                 <div className="flex items-center gap-8 text-gray-400">
-                                    <div className="flex items-center gap-1.5 hover:text-blue-500 transition-colors">
-                                        <MessageCircle size={18} />
-                                        <span className="text-xs font-bold">{tweet.commentCount || 0}</span>
+                                    <div className="flex items-center gap-2">
+                                        <MessageCircle size={18} className="text-gray-400" />
+                                        <span className="text-sm font-bold text-gray-400">
+                                            {tweet.commentCount || 0}
+                                        </span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 hover:text-red-500 transition-colors">
+                                    <button
+                                        onClick={(e) => handleToggleLike(e, tweet._id)}
+                                        className="flex items-center gap-1.5 hover:text-red-500 transition-colors group/like"
+                                    >
                                         <Heart
                                             size={18}
-                                            className={tweet.isLiked ? "fill-red-500 text-red-500" : ""}
+                                            className={tweet.isLiked ? "fill-red-500 text-red-500" : "text-gray-400 group-hover/like:text-red-500"}
                                         />
                                         <span className="text-xs font-bold">{tweet.likesCount || 0}</span>
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
                         </div>

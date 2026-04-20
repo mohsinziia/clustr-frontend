@@ -7,7 +7,7 @@ export const UploadVideo = () => {
   const [loading, setLoading] = useState(false);
 
   // Video State
-  const [videoData, setVideoData] = useState({ title: "", description: "" });
+  const [videoData, setVideoData] = useState({ title: "", description: "", isPublished: true });
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
 
@@ -20,6 +20,7 @@ export const UploadVideo = () => {
     const formData = new FormData();
     formData.append("title", videoData.title);
     formData.append("description", videoData.description);
+    formData.append("isPublished", String(videoData.isPublished));
     if (videoFile) formData.append("videoFile", videoFile);
     if (thumbnail) formData.append("thumbnail", thumbnail);
 
@@ -85,23 +86,37 @@ export const UploadVideo = () => {
           />
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold mb-1">Video File</label>
+              <label className="block text-sm font-bold mb-2 text-gray-700">Video File</label>
               <input
                 type="file"
                 accept="video/*"
                 onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
                 required
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer border border-gray-200 rounded-lg p-2 bg-gray-50"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold mb-1">Thumbnail</label>
+              <label className="block text-sm font-bold mb-2 text-gray-700">Thumbnail</label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={(e) => setThumbnail(e.target.files?.[0] || null)}
                 required
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer border border-gray-200 rounded-lg p-2 bg-gray-50"
               />
             </div>
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              type="checkbox"
+              id="isPublished"
+              checked={videoData.isPublished}
+              onChange={(e) => setVideoData({ ...videoData, isPublished: e.target.checked })}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300 cursor-pointer"
+            />
+            <label htmlFor="isPublished" className="text-sm font-bold text-gray-700 cursor-pointer">
+              Publish video immediately (uncheck to save as draft)
+            </label>
           </div>
           <button
             disabled={loading}

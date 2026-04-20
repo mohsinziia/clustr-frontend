@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import api from '../api/axios';
 import type { Video, Tweet, Owner, ApiResponse } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Edit3, Trash2, X, MessageCircle } from 'lucide-react';
+import { Edit3, Trash2, X, MessageCircle, UserPlus, UserCheck } from 'lucide-react';
 import { VideoCard } from './VideoCard';
 import { useVideoPlayer } from './VideoPlayerContext';
 
@@ -74,9 +74,34 @@ export const ChannelProfile: React.FC = () => {
         try {
             await api.post(`/subscriptions/c/${id}`);
             const profileRes = await api.get<ApiResponse<any>>(`/users/c/${username}`);
-            setProfile(profileRes.data.data);
+            const newProfile = profileRes.data.data;
+            setProfile(newProfile);
+            
+            // Dispatch event with truth from backend
+            window.dispatchEvent(new CustomEvent('subscriptionChange', { 
+                detail: { channelId: id, isSubscribed: newProfile.isSubscribed, subscribersCount: newProfile.subscribersCount } 
+            }));
         } catch (err) { console.error(err); }
     };
+
+    // Listen to subscription changes from GlobalVideoModal
+    useEffect(() => {
+        const handleSubChange = (e: any) => {
+            if (profile && e.detail.channelId === profile._id) {
+                setProfile(prev => {
+                    if (!prev) return prev;
+                    if (prev.isSubscribed === e.detail.isSubscribed) return prev;
+                    return {
+                        ...prev,
+                        isSubscribed: e.detail.isSubscribed,
+                        subscribersCount: e.detail.subscribersCount ?? prev.subscribersCount
+                    };
+                });
+            }
+        };
+        window.addEventListener('subscriptionChange', handleSubChange);
+        return () => window.removeEventListener('subscriptionChange', handleSubChange);
+    }, [profile?._id]);
 
     const handleUpdateVideo = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,6 +121,13 @@ export const ChannelProfile: React.FC = () => {
         } catch (err) { alert("Delete failed"); }
     };
 
+    const handleTogglePublish = async (videoId: string) => {
+        try {
+            await api.patch(`/videos/toggle/publish/${videoId}`);
+            setVideos(prev => prev.map(v => v._id === videoId ? { ...v, isPublished: !v.isPublished } : v));
+        } catch (err) { alert("Toggle failed"); }
+    };
+
     const handleUpdateTweet = async (tweetId: string) => {
         if (!editTweetContent.trim()) return;
         try {
@@ -111,6 +143,26 @@ export const ChannelProfile: React.FC = () => {
             await api.delete(`/tweets/${tweetId}`);
             setTweets(prev => prev.filter(t => t._id !== tweetId));
         } catch (err) { alert("Delete failed"); }
+    };
+
+    const handleToggleLike = async (videoId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setVideos(prev => prev.map(v => {
+            if (v._id === videoId) {
+                const wasLiked = v.isLiked;
+                return {
+                    ...v,
+                    isLiked: !wasLiked,
+                    likesCount: wasLiked ? Math.max(0, (v.likesCount || 0) - 1) : (v.likesCount || 0) + 1
+                };
+            }
+            return v;
+        }));
+        try {
+            await api.post(`/likes/toggle/v/${videoId}`);
+        } catch (err) {
+            console.error("Like failed", err);
+        }
     };
 
     // --- Loading State (Dummy UI) ---
@@ -173,9 +225,21 @@ export const ChannelProfile: React.FC = () => {
                     ) : (
                         <button
                             onClick={() => handleSubscribeInProfile(profile?._id)}
-                            className={`px-10 py-3 rounded-2xl font-bold transition-all shadow-lg ${profile?.isSubscribed ? "bg-gray-100 text-gray-600" : "bg-blue-600 text-white"}`}
+                            className={`flex items-center justify-center gap-2 px-10 py-3.5 rounded-full font-bold transition-all active:scale-95 shadow-sm ${profile?.isSubscribed 
+                                ? "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200" 
+                                : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-500/20"}`}
                         >
-                            {profile?.isSubscribed ? "Subscribed" : "Subscribe"}
+                            {profile?.isSubscribed ? (
+                                <>
+                                    <UserCheck size={20} />
+                                    <span>Subscribed</span>
+                                </>
+                            ) : (
+                                <>
+                                    <UserPlus size={20} />
+                                    <span>Subscribe</span>
+                                </>
+                            )}
                         </button>
                     )}
                 </div>
@@ -204,6 +268,8 @@ export const ChannelProfile: React.FC = () => {
                             isOwner={isOwner}
                             onEdit={() => { setEditingVideo(v); setEditVideoData({ title: v.title, description: v.description }); }}
                             onDelete={handleDeleteVideo}
+                            onTogglePublish={handleTogglePublish}
+                            onToggleLike={handleToggleLike}
                             onClick={() => playVideo(v)}
                         />
                     ))}

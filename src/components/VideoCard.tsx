@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, MessageCircle, Play, Edit3, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, Play, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
 import type { Video } from '../types';
 import { Link } from 'react-router-dom';
 
@@ -8,10 +8,11 @@ interface VideoCardProps {
     onClick: (v: Video) => void;
     isOwner?: boolean;
     onEdit?: (v: Video) => void;
-    onDelete?: (id: string) => void;
+    onTogglePublish?: (id: string) => void;
+    onToggleLike?: (id: string, e: React.MouseEvent) => void;
 }
 
-export const VideoCard: React.FC<VideoCardProps> = ({ video, onClick, isOwner, onEdit, onDelete }) => {
+export const VideoCard: React.FC<VideoCardProps> = ({ video, onClick, isOwner, onEdit, onDelete, onTogglePublish, onToggleLike }) => {
     return (
         <div
             onClick={() => onClick(video)}
@@ -23,6 +24,11 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, onClick, isOwner, o
                 {/* MANAGEMENT OVERLAY (Enabled only in Channel tab where functions are passed) */}
                 {isOwner && onEdit && onDelete && (
                     <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                        {onTogglePublish && (
+                            <button onClick={(e) => { e.stopPropagation(); onTogglePublish(video._id); }} className={`p-3 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl hover:text-white transition-all active:scale-90 ${video.isPublished ? "text-green-600 hover:bg-green-600" : "text-gray-600 hover:bg-gray-600"}`} title={video.isPublished ? "Unpublish" : "Publish"}>
+                                {video.isPublished ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        )}
                         <button onClick={(e) => { e.stopPropagation(); onEdit(video); }} className="p-3 bg-white/90 backdrop-blur-md text-blue-600 rounded-2xl shadow-xl hover:bg-blue-600 hover:text-white transition-all active:scale-90"><Edit3 size={18} /></button>
                         <button onClick={(e) => { e.stopPropagation(); onDelete(video._id); }} className="p-3 bg-white/90 backdrop-blur-md text-red-600 rounded-2xl shadow-xl hover:bg-red-600 hover:text-white transition-all active:scale-90"><Trash2 size={18} /></button>
                     </div>
@@ -46,10 +52,13 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, onClick, isOwner, o
 
                 <div className="mt-auto flex justify-between items-center text-gray-500">
                     <div className="flex gap-4">
-                        <div className="flex items-center gap-1.5">
+                        <button 
+                            onClick={(e) => onToggleLike && onToggleLike(video._id, e)}
+                            className={`flex items-center gap-1.5 ${onToggleLike ? 'hover:scale-110 transition-transform cursor-pointer' : ''}`}
+                        >
                             <Heart size={18} className={video.isLiked ? "text-red-500 fill-current" : "text-gray-400"} />
                             <span className="text-xs font-black">{video.likesCount ?? 0}</span>
-                        </div>
+                        </button>
                         <div className="flex items-center gap-1.5">
                             <MessageCircle size={18} className="text-gray-400" />
                             <span className="text-xs font-black">{video.commentCount ?? 0}</span>

@@ -11,7 +11,6 @@ export const Register = () => {
     fullName: "",
     password: "",
   });
-  const [avatar, setAvatar] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,7 +20,6 @@ export const Register = () => {
     Object.keys(formData).forEach((key) =>
       data.append(key, formData[key as keyof typeof formData]),
     );
-    if (avatar) data.append("avatar", avatar);
 
     try {
       await api.post("/users/register", data);
@@ -72,17 +70,6 @@ export const Register = () => {
             className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
           />
 
-          <div className="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">
-              Profile Avatar
-            </label>
-            <input
-              type="file"
-              onChange={(e) => setAvatar(e.target.files?.[0] || null)}
-              required
-              className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-          </div>
 
           <button
             type="submit"

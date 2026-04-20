@@ -22,6 +22,11 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
     const [currentOwner, setCurrentOwner] = useState(video.owner);
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
     const [editCommentContent, setEditCommentContent] = useState("");
+
+    // Video Like State
+    const [isVideoLiked, setIsVideoLiked] = useState(video.isLiked);
+    const [videoLikesCount, setVideoLikesCount] = useState(video.likesCount ?? 0);
+
     const { closeVideo } = useVideoPlayer();
     const locaion = useLocation();
 
@@ -69,6 +74,19 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
 
     // --- HANDLERS ---
 
+    const handleToggleVideoLike = async () => {
+        const currentlyLiked = isVideoLiked;
+        setIsVideoLiked(!currentlyLiked);
+        setVideoLikesCount(prev => currentlyLiked ? Math.max(0, prev - 1) : prev + 1);
+        try {
+            await api.post(`/likes/toggle/v/${video._id}`);
+        } catch (err) {
+            console.error("Video like failed", err);
+            setIsVideoLiked(currentlyLiked);
+            setVideoLikesCount(videoLikesCount);
+        }
+    };
+
     const handleAddComment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newComment.trim() || !authUser) return;
@@ -90,16 +108,46 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
 
     const handleModalSubscribe = async (channelId: string) => {
         try {
+            // Wait for backend confirmation
             await api.post(`/subscriptions/c/${channelId}`);
-            setCurrentOwner(prev => ({
-                ...prev,
-                isSubscribed: !prev.isSubscribed,
-                subscribersCount: (prev.subscribersCount ?? 0) + (prev.isSubscribed ? -1 : 1)
-            }));
+            
+            setCurrentOwner(prev => {
+                const newIsSubscribed = !prev.isSubscribed;
+                const newCount = (prev.subscribersCount ?? 0) + (newIsSubscribed ? 1 : -1);
+                
+                window.dispatchEvent(new CustomEvent('subscriptionChange', {
+                    detail: { channelId, isSubscribed: newIsSubscribed, subscribersCount: newCount }
+                }));
+                
+                return {
+                    ...prev,
+                    isSubscribed: newIsSubscribed,
+                    subscribersCount: newCount
+                };
+            });
         } catch (err) {
             console.error("Sub Toggle Error:", err);
         }
     };
+
+    // Listen to subscription changes from ChannelProfile or other components
+    useEffect(() => {
+        const handleSubChange = (e: any) => {
+            if (currentOwner && e.detail.channelId === currentOwner._id) {
+                setCurrentOwner(prev => {
+                    if (!prev) return prev;
+                    if (prev.isSubscribed === e.detail.isSubscribed) return prev;
+                    return {
+                        ...prev,
+                        isSubscribed: e.detail.isSubscribed,
+                        subscribersCount: e.detail.subscribersCount ?? prev.subscribersCount
+                    };
+                });
+            }
+        };
+        window.addEventListener('subscriptionChange', handleSubChange);
+        return () => window.removeEventListener('subscriptionChange', handleSubChange);
+    }, [currentOwner?._id]);
 
     const handleToggleCommentLike = async (commentId: string) => {
         // 1. Optimistic Update (Immediate feedback for the clicking user)
@@ -166,13 +214,19 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                 <div className="flex-1 min-w-[350px] flex flex-col h-full bg-[#0f0f0f]">
 
                     {/* Sidebar Header */}
-                    <div className="p-6 border-b border-white/5">
-                        <h2 className="text-xl font-bold text-white mb-4 line-clamp-2">{video.title}</h2>
-                        <ChannelInfo
-                            owner={currentOwner}
-                            onSubscribe={handleModalSubscribe}
-                            variant="dark"
-                        />
+                    <div className="p-6 border-b border-white/5 space-y-4">
+                        <h2 className="text-xl font-bold text-white line-clamp-2">{video.title}</h2>
+                        <div className="flex items-center justify-between">
+                            <ChannelInfo
+                                owner={currentOwner}
+                                onSubscribe={handleModalSubscribe}
+                                variant="dark"
+                            />
+                            <button onClick={handleToggleVideoLike} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-white font-bold text-sm border border-white/5 active:scale-95">
+                                <Heart size={18} className={isVideoLiked ? "fill-red-500 text-red-500" : "text-gray-400"} />
+                                {videoLikesCount}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Scrollable Content */}

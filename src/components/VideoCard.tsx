@@ -30,10 +30,10 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, onClick, isOwner, o
             className="bg-white rounded-3xl border border-gray-100 overflow-hidden group hover:shadow-2xl transition-all duration-300 cursor-pointer h-full flex flex-col relative"
         >
             <div className="relative aspect-video overflow-hidden shrink-0">
-                <img 
-                    src={getOptimizedUrl(video.thumbnail?.url)} 
-                    className="w-full h-full object-cover transition duration-500 group-hover:scale-110" 
-                    alt="Video Thumbnail" 
+                <img
+                    src={getOptimizedUrl(video.thumbnail?.url)}
+                    className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
+                    alt="Video Thumbnail"
                     onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         if (!target.src.includes("unsplash.com")) {
@@ -75,10 +75,10 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, onClick, isOwner, o
                 <h3 className="font-bold text-gray-900 truncate mb-4 text-lg">{video.title}</h3>
                 <div className="flex items-center gap-3 mb-4">
                     <Link to={`/channel/${video.owner?.username}`} onClick={(e) => e.stopPropagation()} className="shrink-0">
-                        <img 
-                            src={getOptimizedUrl(video.owner?.avatar?.url || video.owner?.avatar)} 
-                            className="w-8 h-8 rounded-full object-cover border border-gray-100" 
-                            alt="" 
+                        <img
+                            src={getOptimizedUrl(video.owner?.avatar?.url || video.owner?.avatar)}
+                            className="w-8 h-8 rounded-full object-cover border border-gray-100"
+                            alt=""
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 if (!target.src.includes("ui-avatars.com")) {
@@ -94,7 +94,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, onClick, isOwner, o
 
                 <div className="mt-auto flex justify-between items-center text-gray-500">
                     <div className="flex gap-4">
-                        <button 
+                        <button
                             onClick={(e) => onToggleLike && onToggleLike(video._id, e)}
                             className={`flex items-center gap-1.5 ${onToggleLike ? 'hover:scale-110 transition-transform cursor-pointer' : ''}`}
                         >

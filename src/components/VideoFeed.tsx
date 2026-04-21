@@ -28,6 +28,26 @@ export const VideoFeed: React.FC = () => {
     }
   }, []);
 
+  const handleToggleLike = async (videoId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setVideos(prev => prev.map(v => {
+      if (v._id === videoId) {
+        const wasLiked = v.isLiked;
+        return {
+          ...v,
+          isLiked: !wasLiked,
+          likesCount: wasLiked ? Math.max(0, (v.likesCount || 0) - 1) : (v.likesCount || 0) + 1
+        };
+      }
+      return v;
+    }));
+    try {
+      await api.post(`/likes/toggle/v/${videoId}`);
+    } catch (err) {
+      console.error("Like failed", err);
+    }
+  };
+
   useEffect(() => {
     fetchVideos();
   }, [fetchVideos]);
@@ -59,6 +79,7 @@ export const VideoFeed: React.FC = () => {
             video={v}
             onClick={() => playVideo(v)}
             isOwner={authUser?._id === v.owner?._id}
+            onToggleLike={handleToggleLike}
           />
         ))}
       </div>

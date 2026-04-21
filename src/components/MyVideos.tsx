@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../api/axios";
 import type { Video, ApiResponse, PaginatedData } from "../types";
-import { Pencil, Trash2, X, Play, Upload, Film } from "lucide-react";
+import { Pencil, Trash2, X, Play, Upload, Film, Eye, EyeOff } from "lucide-react";
 
 export const MyVideos: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>([]);
@@ -38,6 +38,19 @@ export const MyVideos: React.FC = () => {
       setVideos((prev) => prev.filter((v) => v._id !== videoId));
     } catch (err) {
       alert("Error deleting video");
+    }
+  };
+
+  const handleTogglePublish = async (videoId: string) => {
+    try {
+      await api.patch(`/videos/toggle/publish/${videoId}`);
+      setVideos((prev) =>
+        prev.map((v) =>
+          v._id === videoId ? { ...v, isPublished: !v.isPublished } : v
+        )
+      );
+    } catch (err) {
+      alert("Error toggling publish status");
     }
   };
 
@@ -90,20 +103,32 @@ export const MyVideos: React.FC = () => {
             </div>
 
             <div className="p-4">
-              <h3 className="font-bold text-gray-900 truncate mb-4">{video.title}</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900 truncate pr-2 flex-1">{video.title}</h3>
+                <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-md shrink-0 ${video.isPublished ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                  {video.isPublished ? "Published" : "Draft"}
+                </span>
+              </div>
               <div className="flex gap-2">
+                <button 
+                  onClick={() => handleTogglePublish(video._id)}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gray-50 text-gray-600 py-2.5 rounded-xl hover:bg-gray-100 transition font-semibold text-sm"
+                  title={video.isPublished ? "Unpublish" : "Publish"}
+                >
+                  {video.isPublished ? <><EyeOff size={16} /> Unpublish</> : <><Eye size={16} /> Publish</>} 
+                </button>
                 <button 
                   onClick={() => {
                     setEditingVideo(video);
                     setEditData({ title: video.title, description: video.description });
                   }}
-                  className="flex-1 flex items-center justify-center gap-2 bg-blue-50 text-blue-600 py-2.5 rounded-xl hover:bg-blue-100 transition font-semibold text-sm"
+                  className="flex-[2] flex items-center justify-center gap-2 bg-blue-50 text-blue-600 py-2.5 rounded-xl hover:bg-blue-100 transition font-semibold text-sm"
                 >
                   <Pencil size={16} /> Edit
                 </button>
                 <button 
                   onClick={() => handleDelete(video._id)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2.5 rounded-xl hover:bg-red-100 transition font-semibold text-sm"
+                  className="flex-[2] flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2.5 rounded-xl hover:bg-red-100 transition font-semibold text-sm"
                 >
                   <Trash2 size={16} /> Delete
                 </button>

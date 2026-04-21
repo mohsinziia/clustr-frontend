@@ -1,36 +1,95 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 import type { Video, ApiResponse } from "../types";
-import { Link } from "react-router-dom";
+import { useVideoPlayer } from "./VideoPlayerContext";
+import { VideoCard } from "./VideoCard";
+import { useAuth } from "../context/AuthContext";
+import { VideoSkeleton } from "./Skeletons";
 
 export const History = () => {
   const [history, setHistory] = useState<Video[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const { playVideo } = useVideoPlayer();
+  const { user: authUser } = useAuth();
 
   useEffect(() => {
     const fetchHistory = async () => {
-      const { data } = await api.get<ApiResponse<Video[]>>("/users/history");
-      setHistory(data.data);
+      try {
+        setLoading(true);
+        const { data } = await api.get<ApiResponse<Video[]>>("/users/history");
+        // Reverse so the most recently watched video appears first
+        setHistory(data.data.reverse());
+      } catch (err) {
+        console.error("Failed to fetch history:", err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchHistory();
   }, []);
 
+  const handleToggleLike = async (videoId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHistory(prev => prev.map(v => {
+      if (v._id === videoId) {
+        const wasLiked = v.isLiked;
+        return {
+          ...v,
+          isLiked: !wasLiked,
+          likesCount: wasLiked ? Math.max(0, (v.likesCount || 0) - 1) : (v.likesCount || 0) + 1
+        };
+      }
+      return v;
+    }));
+    try {
+      await api.post(`/likes/toggle/v/${videoId}`);
+    } catch (err) {
+      console.error("Like failed", err);
+    }
+  };
+
+  const handleRemoveFromHistory = async (videoId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await api.delete(`/users/history/${videoId}`);
+      setHistory(prev => prev.filter(v => v._id !== videoId));
+    } catch (err) {
+      console.error("Failed to remove from history", err);
+    }
+  };
+
+  if (loading) return (
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="h-8 bg-gray-200 rounded-lg w-48 mb-8 animate-pulse" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {[...Array(3)].map((_, i) => <VideoSkeleton key={i} />)}
+      </div>
+    </div>
+  );
+
+  if (history.length === 0) return (
+    <div className="text-center p-20 text-gray-400 italic">
+      Your watch history is empty. Go watch some videos!
+    </div>
+  );
+
   return (
-    <div>
-      <h2 className="text-xl font-bold p-4">Your Watch History</h2>
-      {history.map((video) => (
-        <div key={video._id} className="flex gap-4 p-2 border-b">
-          <img src={video.thumbnail.url} className="w-32 h-20 object-cover" />
-          <div>
-            <p className="font-semibold">{video.title}</p>
-            <Link
-              to={`/channel/${video.owner?.username}`}
-              className="text-sm text-gray-500 hover:text-blue-500"
-            >
-              {video.owner?.username}
-            </Link>
-          </div>
-        </div>
-      ))}
+    <div className="max-w-7xl mx-auto p-6">
+      <h2 className="text-2xl font-black text-gray-900 mb-8 tracking-tight">Your Watch History</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {history.map(v => (
+          <VideoCard
+            key={v._id}
+            video={v}
+            onClick={() => playVideo(v)}
+            isOwner={authUser?._id === v.owner?._id}
+            onToggleLike={handleToggleLike}
+            onRemoveFromHistory={handleRemoveFromHistory}
+          />
+        ))}
+      </div>
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { ChannelInfo } from './ChannelInfo';
 import type { Video } from '../types';
 import { Link, useLocation } from 'react-router-dom';
 import { useVideoPlayer } from './VideoPlayerContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface GlobalVideoModalProps {
     video: Video;
@@ -27,8 +28,12 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
     const [isVideoLiked, setIsVideoLiked] = useState(video.isLiked);
     const [videoLikesCount, setVideoLikesCount] = useState(video.likesCount ?? 0);
 
+    // Video Comment State
+    const [videoCommentCount, setVideoCommentCount] = useState(video.commentCount ?? 0);
+
     const { closeVideo } = useVideoPlayer();
-    const locaion = useLocation();
+    const { theme } = useTheme();
+    const location = useLocation();
 
     const initialPath = useRef(location.pathname);
 
@@ -51,7 +56,15 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                 const { data } = await api.get(`/comments/${video._id}?t=${new Date().getTime()}`);
 
                 if (isMounted) {
-                    setComments(data.data.docs || []);
+                    const fetchedComments = data.data.docs || [];
+                    setComments(fetchedComments);
+                    // Sync the count if it's different
+                    if (fetchedComments.length !== videoCommentCount) {
+                        setVideoCommentCount(fetchedComments.length);
+                        window.dispatchEvent(new CustomEvent('videoCommentChange', {
+                            detail: { videoId: video._id, commentCount: fetchedComments.length }
+                        }));
+                    }
                 }
             } catch (err) {
                 console.error("Sync failed:", err);
@@ -75,7 +88,7 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
     // Add to Watch History
     useEffect(() => {
         if (!video?._id || !authUser) return;
-        
+
         const addToHistory = async () => {
             try {
                 await api.post(`/users/history/${video._id}`);
@@ -83,22 +96,31 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                 console.error("Failed to add to watch history:", err);
             }
         };
-        
+
         addToHistory();
     }, [video?._id, authUser]);
 
     // --- HANDLERS ---
 
     const handleToggleVideoLike = async () => {
-        const currentlyLiked = isVideoLiked;
-        setIsVideoLiked(!currentlyLiked);
-        setVideoLikesCount(prev => currentlyLiked ? Math.max(0, prev - 1) : prev + 1);
         try {
-            await api.post(`/likes/toggle/v/${video._id}`);
+            const { data } = await api.post(`/likes/toggle/v/${video._id}`);
+            const newIsLiked = data.data.isLiked;
+
+            // Calculate new count based on backend truth
+            const newCount = newIsLiked
+                ? (videoLikesCount + 1)
+                : Math.max(0, videoLikesCount - 1);
+
+            setIsVideoLiked(newIsLiked);
+            setVideoLikesCount(newCount);
+
+            // Sync with background components
+            window.dispatchEvent(new CustomEvent('videoLikeChange', {
+                detail: { videoId: video._id, isLiked: newIsLiked, likesCount: newCount }
+            }));
         } catch (err) {
             console.error("Video like failed", err);
-            setIsVideoLiked(currentlyLiked);
-            setVideoLikesCount(videoLikesCount);
         }
     };
 
@@ -110,10 +132,21 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
             const { data } = await api.post(`/comments/${video._id}`, { content: newComment });
             const enriched = {
                 ...data.data,
-                owner: { _id: authUser._id, username: authUser.username, avatar: authUser.avatar }
+                owner: {
+                    _id: authUser._id,
+                    username: authUser.username,
+                    avatar: authUser.avatar?.url || authUser.avatar
+                }
             };
             setComments(prev => [enriched, ...prev]);
             setNewComment("");
+
+            // Sync count
+            const newCount = videoCommentCount + 1;
+            setVideoCommentCount(newCount);
+            window.dispatchEvent(new CustomEvent('videoCommentChange', {
+                detail: { videoId: video._id, commentCount: newCount }
+            }));
         } catch (err) {
             console.error("Post Comment Error:", err);
         } finally {
@@ -125,15 +158,15 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
         try {
             // Wait for backend confirmation
             await api.post(`/subscriptions/c/${channelId}`);
-            
+
             setCurrentOwner(prev => {
                 const newIsSubscribed = !prev.isSubscribed;
                 const newCount = (prev.subscribersCount ?? 0) + (newIsSubscribed ? 1 : -1);
-                
+
                 window.dispatchEvent(new CustomEvent('subscriptionChange', {
                     detail: { channelId, isSubscribed: newIsSubscribed, subscribersCount: newCount }
                 }));
-                
+
                 return {
                     ...prev,
                     isSubscribed: newIsSubscribed,
@@ -160,30 +193,42 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                 });
             }
         };
+
+        const handleLikeChange = (e: any) => {
+            if (video && e.detail.videoId === video._id) {
+                setIsVideoLiked(e.detail.isLiked);
+                setVideoLikesCount(e.detail.likesCount);
+            }
+        };
+
         window.addEventListener('subscriptionChange', handleSubChange);
-        return () => window.removeEventListener('subscriptionChange', handleSubChange);
-    }, [currentOwner?._id]);
+        window.addEventListener('videoLikeChange', handleLikeChange);
+        return () => {
+            window.removeEventListener('subscriptionChange', handleSubChange);
+            window.removeEventListener('videoLikeChange', handleLikeChange);
+        };
+    }, [currentOwner?._id, video?._id]);
 
     const handleToggleCommentLike = async (commentId: string) => {
-        // 1. Optimistic Update (Immediate feedback for the clicking user)
-        setComments(prev => prev.map(c => {
-            if (c._id === commentId) {
-                const currentlyLiked = c.isLiked;
-                return {
-                    ...c,
-                    isLiked: !currentlyLiked,
-                    likesCount: currentlyLiked ? (c.likesCount || 1) - 1 : (c.likesCount || 0) + 1
-                };
-            }
-            return c;
-        }));
-
         try {
-            // 2. Persistent Update (Notifies the server)
             await api.post(`/likes/toggle/c/${commentId}`);
+            // We could manually update local state here if we want immediate feedback AFTER success,
+            // but for now, the 15s polling will sync it, or we could just re-fetch comments.
+            // Let's do a manual update for better UX without being "optimistic".
+            setComments(prev => prev.map(c => {
+                if (c._id === commentId) {
+                    const currentlyLiked = c.isLiked;
+                    const newIsLiked = !currentlyLiked;
+                    return {
+                        ...c,
+                        isLiked: newIsLiked,
+                        likesCount: newIsLiked ? (c.likesCount || 0) + 1 : Math.max(0, (c.likesCount || 0) - 1)
+                    };
+                }
+                return c;
+            }));
         } catch (err) {
-            console.error("Like failed, syncing data...");
-            // If the API fails, the next poll will automatically fix the UI
+            console.error("Like failed", err);
         }
     };
 
@@ -192,6 +237,13 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
         try {
             await api.delete(`/comments/c/${commentId}`);
             setComments(prev => prev.filter(c => c._id !== commentId));
+
+            // Sync count
+            const newCount = Math.max(0, videoCommentCount - 1);
+            setVideoCommentCount(newCount);
+            window.dispatchEvent(new CustomEvent('videoCommentChange', {
+                detail: { videoId: video._id, commentCount: newCount }
+            }));
         } catch (err) { console.error(err); }
     };
 
@@ -204,7 +256,7 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
 
     return (
         // z-[9999] ensures it's above Sidebar/Nav. inset-0 + fixed ensures it fills the screen.
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 lg:p-10">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 dark:bg-black/90 backdrop-blur-sm p-4 lg:p-10 transition-colors">
 
             {/* Close Button */}
             <button
@@ -214,10 +266,10 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                 <X size={28} />
             </button>
 
-            <div className="flex flex-col lg:flex-row w-full max-w-7xl h-full max-h-[90vh] bg-[#0f0f0f] rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+            <div className="flex flex-col lg:flex-row w-full max-w-7xl h-full max-h-[90vh] bg-white dark:bg-[#1a1725] rounded-3xl overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-800 transition-colors">
 
                 {/* 1. LEFT: Video Player (Takes 2/3 of space on desktop) */}
-                <div className="flex-[2] bg-black flex items-center justify-center relative border-b lg:border-b-0 lg:border-r border-white/5">
+                <div className="flex-[2] bg-black flex items-center justify-center relative border-b lg:border-b-0 lg:border-r border-gray-100 dark:border-white/5">
                     <video
                         src={video.videoFile.url}
                         controls
@@ -226,21 +278,29 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                 </div>
 
                 {/* 2. RIGHT: Sidebar (Takes 1/3 of space) */}
-                <div className="flex-1 min-w-[350px] flex flex-col h-full bg-[#0f0f0f]">
+                <div className="flex-1 min-w-[350px] flex flex-col h-full bg-white dark:bg-[#1a1725] transition-colors">
 
                     {/* Sidebar Header */}
-                    <div className="p-6 border-b border-white/5 space-y-4">
-                        <h2 className="text-xl font-bold text-white line-clamp-2">{video.title}</h2>
-                        <div className="flex items-center justify-between">
+                    <div className="p-6 border-b border-gray-100 dark:border-white/5 space-y-6">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-2">{video.title}</h2>
+
+                        <div className="space-y-4">
                             <ChannelInfo
                                 owner={currentOwner}
                                 onSubscribe={handleModalSubscribe}
-                                variant="dark"
+                                variant={document.documentElement.classList.contains('dark') ? "dark" : "light"}
                             />
-                            <button onClick={handleToggleVideoLike} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-white font-bold text-sm border border-white/5 active:scale-95">
-                                <Heart size={18} className={isVideoLiked ? "fill-red-500 text-red-500" : "text-gray-400"} />
-                                {videoLikesCount}
-                            </button>
+
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleToggleVideoLike}
+                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-2xl transition-all text-gray-900 dark:text-white font-bold text-sm border border-gray-100 dark:border-white/5 active:scale-95 shadow-sm"
+                                >
+                                    <Heart size={20} className={isVideoLiked ? "fill-red-500 text-red-500" : "text-gray-400"} />
+                                    <span>{isVideoLiked ? "Liked" : "Like"} • {videoLikesCount}</span>
+                                </button>
+                                {/* We can add more buttons here later like Share/Download */}
+                            </div>
                         </div>
                     </div>
 
@@ -248,8 +308,8 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                     <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
 
                         {/* Description Section */}
-                        <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                            <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">
+                        <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <div className="flex justify-between text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
                                 <span>{video.views?.toLocaleString()} Views</span>
                                 <span>{new Date(video.createdAt).toLocaleDateString()}</span>
                             </div>
@@ -258,7 +318,7 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
 
                         {/* Comment Form */}
                         <div className="space-y-4">
-                            <h3 className="text-white font-black text-xs uppercase tracking-tighter flex items-center gap-2">
+                            <h3 className="text-gray-900 dark:text-white font-black text-xs uppercase tracking-tighter flex items-center gap-2">
                                 <MessageCircle size={16} className="text-blue-500" /> Discussion
                             </h3>
                             <form onSubmit={handleAddComment} className="flex gap-2">
@@ -267,7 +327,7 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                                     placeholder="Write a comment..."
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
-                                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                    className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white focus:border-blue-500 outline-none"
                                 />
                                 <button
                                     type="submit"
@@ -289,12 +349,12 @@ export const GlobalVideoModal: React.FC<GlobalVideoModalProps> = ({ video, onClo
                                             <Link
                                                 to={`/channel/${comment.owner?.username}`}
                                                 onClick={handleNavigation}
-                                                className="text-xs font-bold text-white hover:text-blue-400 transition-colors"
+                                                className="text-xs font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                             >
                                                 @{comment.owner?.username}
                                             </Link>
                                         </div>
-                                        <p className="text-sm text-gray-400">{comment.content}</p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">{comment.content}</p>
                                         <button
                                             onClick={() => handleToggleCommentLike(comment._id)}
                                             className="flex items-center gap-1.5 mt-2 group/like"

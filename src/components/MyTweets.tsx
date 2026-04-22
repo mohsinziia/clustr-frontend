@@ -72,10 +72,10 @@ export const MyTweets: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto p-4">
       <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
           <MessageSquare className="text-blue-600" /> My Tweets
         </h2>
-        <span className="text-sm font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
+        <span className="text-sm font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-3 py-1 rounded-full">
           {tweets.length} Posts
         </span>
       </div>
@@ -84,7 +84,7 @@ export const MyTweets: React.FC = () => {
         {tweets.map((tweet) => (
           <div
             key={tweet._id}
-            className="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-blue-200 transition-all"
+            className="group bg-white dark:bg-[#1a1725] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all"
           >
             <div className="flex justify-between items-start gap-4">
               <div className="flex-1">
@@ -92,7 +92,7 @@ export const MyTweets: React.FC = () => {
                   // Edit Mode UI
                   <div className="space-y-3">
                     <textarea
-                      className="w-full border-2 border-blue-100 p-3 rounded-xl focus:border-blue-400 outline-none h-24"
+                      className="w-full border-2 border-blue-100 dark:border-blue-900 bg-white dark:bg-[#13111C] p-3 rounded-xl focus:border-blue-400 outline-none h-24 dark:text-white"
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
                       autoFocus
@@ -106,7 +106,7 @@ export const MyTweets: React.FC = () => {
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="flex items-center gap-1 bg-gray-100 text-gray-600 px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-200 transition"
+                        className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                       >
                         <X size={16} /> Cancel
                       </button>
@@ -115,10 +115,10 @@ export const MyTweets: React.FC = () => {
                 ) : (
                   // View Mode UI
                   <>
-                    <p className="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">
+                    <p className="text-gray-800 dark:text-gray-300 text-lg leading-relaxed whitespace-pre-wrap">
                       {tweet.content}
                     </p>
-                    <div className="flex items-center gap-2 mt-4 text-gray-400 text-sm">
+                    <div className="flex items-center gap-2 mt-4 text-gray-400 dark:text-gray-500 text-sm">
                       <Clock size={14} />
                       {new Date(tweet.createdAt).toLocaleDateString()}
                     </div>
@@ -135,14 +135,14 @@ export const MyTweets: React.FC = () => {
                       setEditingId(tweet._id);
                       setEditContent(tweet.content);
                     }}
-                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
                     title="Edit Tweet"
                   >
                     <Pencil size={18} />
                   </button>
                   <button
                     onClick={() => handleDeleteTweet(tweet._id)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
                     title="Delete Tweet"
                   >
                     <Trash2 size={18} />
@@ -154,8 +154,8 @@ export const MyTweets: React.FC = () => {
         ))}
 
         {tweets.length === 0 && !loading && (
-          <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-            <p className="text-gray-500">You haven't posted any tweets yet.</p>
+          <div className="text-center py-20 bg-gray-50 dark:bg-[#13111C] rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800">
+            <p className="text-gray-500 dark:text-gray-400">You haven't posted any tweets yet.</p>
           </div>
         )}
       </div>

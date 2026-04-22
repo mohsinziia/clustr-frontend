@@ -65,7 +65,7 @@ export const TweetFeed: React.FC = () => {
 
     if (loading) return (
         <div className="max-w-2xl mx-auto p-4">
-            <h2 className="text-2xl font-black mb-8 text-gray-900 tracking-tight">Explore</h2>
+            <h2 className="text-2xl font-black mb-8 text-gray-900 dark:text-white tracking-tight">Explore</h2>
             <div className="flex flex-col space-y-3">
                 {/* Render 5 skeletons while loading */}
                 {[...Array(5)].map((_, i) => (
@@ -79,7 +79,7 @@ export const TweetFeed: React.FC = () => {
 
     return (
         <div className="max-w-2xl mx-auto p-4">
-            <h2 className="text-2xl font-black mb-8 text-gray-900 tracking-tight">Explore</h2>
+            <h2 className="text-2xl font-black mb-8 text-gray-900 dark:text-white tracking-tight">Explore</h2>
 
             {/* Changed space-y-px to space-y-3 for a balanced gap */}
             <div className="flex flex-col space-y-3">
@@ -87,7 +87,7 @@ export const TweetFeed: React.FC = () => {
                     <div
                         key={tweet._id}
                         onClick={() => openTweet(tweet, handleSyncTweet)}
-                        className="bg-white p-5 cursor-pointer hover:bg-gray-50 transition-all group border border-gray-100 rounded-2xl shadow-sm"
+                        className="bg-white dark:bg-[#1a1725] p-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#1f1b2e] transition-all group border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm"
                     >
                         <div className="flex gap-3">
                             <Link
@@ -97,26 +97,26 @@ export const TweetFeed: React.FC = () => {
                             >
                                 <img
                                     src={tweet.owner?.avatar?.url || tweet.owner?.avatar}
-                                    className="w-12 h-12 rounded-full object-cover border border-gray-100"
+                                    className="w-12 h-12 rounded-full object-cover border border-gray-100 dark:border-gray-800"
                                     alt=""
                                 />
                             </Link>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 mb-1">
-                                    <span className="font-bold text-gray-900 truncate">
+                                    <span className="font-bold text-gray-900 dark:text-white truncate">
                                         {tweet.owner?.fullName}
                                     </span>
-                                    <span className="text-gray-500 text-sm truncate">
+                                    <span className="text-gray-500 dark:text-gray-400 text-sm truncate">
                                         @{tweet.owner?.username}
                                     </span>
                                 </div>
-                                <p className="text-[15px] text-gray-800 leading-normal mb-3 whitespace-pre-wrap">
+                                <p className="text-[15px] text-gray-800 dark:text-gray-300 leading-normal mb-3 whitespace-pre-wrap">
                                     {tweet.content}
                                 </p>
-                                <div className="flex items-center gap-8 text-gray-400">
+                                <div className="flex items-center gap-8 text-gray-400 dark:text-gray-500">
                                     <div className="flex items-center gap-2">
-                                        <MessageCircle size={18} className="text-gray-400" />
-                                        <span className="text-sm font-bold text-gray-400">
+                                        <MessageCircle size={18} className="text-gray-400 dark:text-gray-500" />
+                                        <span className="text-sm font-bold text-gray-400 dark:text-gray-500">
                                             {tweet.commentCount || 0}
                                         </span>
                                     </div>

@@ -35,6 +35,7 @@ export interface Video {
   duration: number;
   views: number;
   owner: Owner; // Populated via aggregation lookup
+  isPublished: boolean;
   // NEW AGGREGATED FIELDS
   isLiked: boolean;
   likesCount: number;

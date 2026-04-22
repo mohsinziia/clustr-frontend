@@ -76,10 +76,10 @@ export const ChannelProfile: React.FC = () => {
             const profileRes = await api.get<ApiResponse<any>>(`/users/c/${username}`);
             const newProfile = profileRes.data.data;
             setProfile(newProfile);
-            
+
             // Dispatch event with truth from backend
-            window.dispatchEvent(new CustomEvent('subscriptionChange', { 
-                detail: { channelId: id, isSubscribed: newProfile.isSubscribed, subscribersCount: newProfile.subscribersCount } 
+            window.dispatchEvent(new CustomEvent('subscriptionChange', {
+                detail: { channelId: id, isSubscribed: newProfile.isSubscribed, subscribersCount: newProfile.subscribersCount }
             }));
         } catch (err) { console.error(err); }
     };
@@ -102,6 +102,32 @@ export const ChannelProfile: React.FC = () => {
         window.addEventListener('subscriptionChange', handleSubChange);
         return () => window.removeEventListener('subscriptionChange', handleSubChange);
     }, [profile?._id]);
+    
+    // Listen to video like/comment changes from GlobalVideoModal or other cards
+    useEffect(() => {
+        const handleLikeChange = (e: any) => {
+            setVideos(prev => prev.map(v => 
+                v._id === e.detail.videoId 
+                ? { ...v, isLiked: e.detail.isLiked, likesCount: e.detail.likesCount } 
+                : v
+            ));
+        };
+
+        const handleCommentChange = (e: any) => {
+            setVideos(prev => prev.map(v => 
+                v._id === e.detail.videoId 
+                ? { ...v, commentCount: e.detail.commentCount } 
+                : v
+            ));
+        };
+
+        window.addEventListener('videoLikeChange', handleLikeChange);
+        window.addEventListener('videoCommentChange', handleCommentChange);
+        return () => {
+            window.removeEventListener('videoLikeChange', handleLikeChange);
+            window.removeEventListener('videoCommentChange', handleCommentChange);
+        };
+    }, []);
 
     const handleUpdateVideo = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -147,19 +173,29 @@ export const ChannelProfile: React.FC = () => {
 
     const handleToggleLike = async (videoId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        setVideos(prev => prev.map(v => {
-            if (v._id === videoId) {
-                const wasLiked = v.isLiked;
-                return {
-                    ...v,
-                    isLiked: !wasLiked,
-                    likesCount: wasLiked ? Math.max(0, (v.likesCount || 0) - 1) : (v.likesCount || 0) + 1
-                };
-            }
-            return v;
-        }));
         try {
-            await api.post(`/likes/toggle/v/${videoId}`);
+            const { data } = await api.post(`/likes/toggle/v/${videoId}`);
+            const newIsLiked = data.data.isLiked;
+
+            // 1. Calculate the new count based on current state
+            const videoToUpdate = videos.find(v => v._id === videoId);
+            if (!videoToUpdate) return;
+
+            const newCount = newIsLiked 
+                ? (videoToUpdate.likesCount || 0) + 1 
+                : Math.max(0, (videoToUpdate.likesCount || 0) - 1);
+
+            // 2. Dispatch the event with the CORRECT count
+            window.dispatchEvent(new CustomEvent('videoLikeChange', {
+                detail: { videoId, isLiked: newIsLiked, likesCount: newCount }
+            }));
+
+            // 3. Update local state immediately
+            setVideos(prev => prev.map(v => 
+                v._id === videoId 
+                ? { ...v, isLiked: newIsLiked, likesCount: newCount } 
+                : v
+            ));
         } catch (err) {
             console.error("Like failed", err);
         }
@@ -225,8 +261,8 @@ export const ChannelProfile: React.FC = () => {
                     ) : (
                         <button
                             onClick={() => handleSubscribeInProfile(profile?._id)}
-                            className={`flex items-center justify-center gap-2 px-10 py-3.5 rounded-full font-bold transition-all active:scale-95 shadow-sm ${profile?.isSubscribed 
-                                ? "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200" 
+                            className={`flex items-center justify-center gap-2 px-10 py-3.5 rounded-full font-bold transition-all active:scale-95 shadow-sm ${profile?.isSubscribed
+                                ? "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
                                 : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-500/20"}`}
                         >
                             {profile?.isSubscribed ? (

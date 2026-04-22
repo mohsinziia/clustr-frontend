@@ -31,8 +31,8 @@ export const ChannelInfo: React.FC<ChannelInfoProps> = ({ owner, onSubscribe, va
 
   return (
     <div className={`flex items-center justify-between p-5 rounded-3xl border transition-all ${isDark
-        ? 'bg-white/5 border-white/10 text-white backdrop-blur-md'
-        : 'bg-white border-gray-100 shadow-sm text-gray-900'
+      ? 'bg-white/5 border-white/10 text-white backdrop-blur-md'
+      : 'bg-white border-gray-100 shadow-sm text-gray-900'
       }`}>
 
       {/* Clickable Identity Section */}
@@ -64,7 +64,7 @@ export const ChannelInfo: React.FC<ChannelInfoProps> = ({ owner, onSubscribe, va
             )}
           </div>
           <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            @{owner.username.toLowerCase()} •
+            @{owner?.username?.toLowerCase() || 'unknown'} •
             <span className={`ml-1 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
               {formatCount(owner.subscribersCount)} subscribers
             </span>
@@ -90,10 +90,10 @@ export const ChannelInfo: React.FC<ChannelInfoProps> = ({ owner, onSubscribe, va
               onSubscribe(owner._id);
             }}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-sm transition-all active:scale-95 shadow-sm ${owner.isSubscribed
-                ? (isDark
-                  ? 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/10'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200')
-                : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-500/20'
+              ? (isDark
+                ? 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/10'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200')
+              : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-500/20'
               }`}
           >
             {owner.isSubscribed ? (

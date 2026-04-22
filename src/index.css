@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-blue-50: var(--color-violet-50);
+  --color-blue-100: var(--color-violet-100);
+  --color-blue-200: var(--color-violet-200);
+  --color-blue-300: var(--color-violet-300);
+  --color-blue-400: var(--color-violet-400);
+  --color-blue-500: var(--color-violet-500);
+  --color-blue-600: #7B68EE;
+  --color-blue-700: #6A5ACD;
+  --color-blue-800: var(--color-violet-800);
+  --color-blue-900: var(--color-violet-900);
+  --color-blue-950: var(--color-violet-950);
+}
+
 body {
   margin: 0;
 }

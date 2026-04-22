@@ -1,7 +1,6 @@
 // src/context/VideoPlayerContext.tsx
 import React, { createContext, useContext, useState } from 'react';
 import type{ Video } from '../types';
-import { GlobalVideoModal } from './GlobalVideoModal';
 
 interface VideoPlayerContextType {
     activeVideo: Video | null;
@@ -20,8 +19,6 @@ export const VideoPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return (
         <VideoPlayerContext.Provider value={{ activeVideo, playVideo, closeVideo }}>
             {children}
-            {/* The actual Modal component is placed here so it's always ready */}
-            {activeVideo && <GlobalVideoModal video={activeVideo} onClose={closeVideo} />}
         </VideoPlayerContext.Provider>
     );
 };

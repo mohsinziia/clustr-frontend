@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import api from '../api/axios';
 import type { Video, Tweet, Owner, ApiResponse } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Edit3, Trash2, X, MessageCircle, UserPlus, UserCheck } from 'lucide-react';
+import { Edit3, Trash2, X, MessageCircle, UserPlus, UserCheck, ListMusic, Plus, Play, ChevronRight } from 'lucide-react';
 import { VideoCard } from './VideoCard';
 import { useVideoPlayer } from './VideoPlayerContext';
 
@@ -31,7 +31,11 @@ export const ChannelProfile: React.FC = () => {
     const [profile, setProfile] = useState<Owner | null>(null);
     const [videos, setVideos] = useState<Video[]>([]);
     const [tweets, setTweets] = useState<Tweet[]>([]);
-    const [activeTab, setActiveTab] = useState<'videos' | 'tweets'>('videos');
+    const [activeTab, setActiveTab] = useState<'videos' | 'tweets' | 'playlists'>('videos');
+    const [playlists, setPlaylists] = useState<any[]>([]);
+    const [selectedPlaylist, setSelectedPlaylist] = useState<any | null>(null);
+    const [isEditingPlaylist, setIsEditingPlaylist] = useState(false);
+    const [editPlaylistData, setEditPlaylistData] = useState({ name: "", description: "" });
     const [loading, setLoading] = useState(true);
 
     const { playVideo } = useVideoPlayer();
@@ -52,13 +56,15 @@ export const ChannelProfile: React.FC = () => {
             const profileData = profileRes.data.data;
             setProfile(profileData);
 
-            const [videoRes, tweetRes] = await Promise.all([
+            const [videoRes, tweetRes, playlistRes] = await Promise.all([
                 api.get(`/videos?userId=${profileData._id}`),
-                api.get(`/tweets/user/${profileData._id}`)
+                api.get(`/tweets/user/${profileData._id}`),
+                api.get(`/playlists/user/${profileData._id}`)
             ]);
 
             setVideos(videoRes.data.data.docs);
             setTweets(tweetRes.data.data.docs);
+            setPlaylists(playlistRes.data.data);
         } catch (err) {
             console.error("Error loading channel:", err);
         } finally {
@@ -152,6 +158,30 @@ export const ChannelProfile: React.FC = () => {
             await api.patch(`/videos/toggle/publish/${videoId}`);
             setVideos(prev => prev.map(v => v._id === videoId ? { ...v, isPublished: !v.isPublished } : v));
         } catch (err) { alert("Toggle failed"); }
+    };
+
+    const handleDeletePlaylist = async (playlistId: string) => {
+        if (!window.confirm("Delete this playlist? This won't delete the videos themselves.")) return;
+        try {
+            await api.delete(`/playlists/${playlistId}`);
+            setPlaylists(prev => prev.filter(p => p._id !== playlistId));
+            setSelectedPlaylist(null);
+        } catch (err) {
+            console.error("Delete playlist failed", err);
+        }
+    };
+
+    const handleUpdatePlaylist = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedPlaylist) return;
+        try {
+            const { data } = await api.patch(`/playlists/${selectedPlaylist._id}`, editPlaylistData);
+            setPlaylists(prev => prev.map(p => p._id === selectedPlaylist._id ? { ...p, ...editPlaylistData } : p));
+            setSelectedPlaylist(prev => ({ ...prev, ...editPlaylistData }));
+            setIsEditingPlaylist(false);
+        } catch (err) {
+            console.error("Update playlist failed", err);
+        }
     };
 
     const handleUpdateTweet = async (tweetId: string) => {
@@ -283,19 +313,22 @@ export const ChannelProfile: React.FC = () => {
 
             {/* Tabs */}
             <div className="flex border-b border-gray-100 mb-6 mt-8">
-                {['videos', 'tweets'].map((tab) => (
+                {['videos', 'tweets', 'playlists'].map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => setActiveTab(tab as any)}
+                        onClick={() => {
+                            setActiveTab(tab as any);
+                            setSelectedPlaylist(null); // Clear selected playlist when switching tabs
+                        }}
                         className={`px-6 py-3 font-bold transition capitalize ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-400'}`}
                     >
-                        {tab} ({tab === 'videos' ? videos.length : tweets.length})
+                        {tab} ({tab === 'videos' ? videos.length : tab === 'tweets' ? tweets.length : playlists.length})
                     </button>
                 ))}
             </div>
 
-            {/* Video List with Integrated Management */}
-            {activeTab === 'videos' ? (
+            {/* Tab Content */}
+            {activeTab === 'videos' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {videos.map(v => (
                         <VideoCard
@@ -310,13 +343,15 @@ export const ChannelProfile: React.FC = () => {
                         />
                     ))}
                 </div>
-            ) : (
+            )}
+
+            {activeTab === 'tweets' && (
                 <div className="space-y-4 max-w-2xl">
                     {tweets.map(t => (
-                        <div key={t._id} className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition-all hover:border-blue-100">
+                        <div key={t._id} className="group bg-white dark:bg-white/5 p-6 rounded-2xl border border-gray-100 dark:border-white/5 shadow-sm transition-all hover:border-blue-100">
                             {editingTweetId === t._id ? (
                                 <div className="space-y-3">
-                                    <textarea className="w-full border-2 border-blue-100 p-4 rounded-xl outline-none h-32 resize-none" value={editTweetContent} onChange={(e) => setEditTweetContent(e.target.value)} />
+                                    <textarea className="w-full bg-white dark:bg-[#13111C] border-2 border-blue-100 p-4 rounded-xl outline-none h-32 resize-none dark:text-white" value={editTweetContent} onChange={(e) => setEditTweetContent(e.target.value)} />
                                     <div className="flex gap-2">
                                         <button onClick={() => handleUpdateTweet(t._id)} className="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-100">Save</button>
                                         <button onClick={() => setEditingTweetId(null)} className="bg-gray-100 text-gray-600 px-5 py-2 rounded-xl text-sm font-bold">Cancel</button>
@@ -325,7 +360,7 @@ export const ChannelProfile: React.FC = () => {
                             ) : (
                                 <div className="flex justify-between items-start gap-4">
                                     <div className="flex-1">
-                                        <p className="text-gray-800 text-lg leading-relaxed">{t.content}</p>
+                                        <p className="text-gray-800 dark:text-gray-200 text-lg leading-relaxed">{t.content}</p>
                                         <div className="flex items-center gap-2 mt-4 text-gray-400 text-xs font-bold uppercase tracking-widest">
                                             <MessageCircle size={14} /> {new Date(t.createdAt).toLocaleDateString()}
                                         </div>
@@ -340,6 +375,135 @@ export const ChannelProfile: React.FC = () => {
                             )}
                         </div>
                     ))}
+                </div>
+            )}
+
+            {activeTab === 'playlists' && (
+                <div>
+                    {!selectedPlaylist ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {playlists.map((playlist) => (
+                                <div 
+                                    key={playlist._id} 
+                                    onClick={() => setSelectedPlaylist(playlist)}
+                                    className="group cursor-pointer"
+                                >
+                                    <div className="relative aspect-video rounded-3xl overflow-hidden bg-gray-100 dark:bg-white/5 mb-4 shadow-lg transition-transform group-hover:-translate-y-2">
+                                        {playlist.thumbnail ? (
+                                            <img src={playlist.thumbnail} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <ListMusic size={48} className="text-gray-300" />
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-white font-bold">
+                                                <ListMusic size={18} />
+                                                <span>{playlist.totalVideos} Videos</span>
+                                            </div>
+                                            <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white scale-0 group-hover:scale-100 transition-transform">
+                                                <Play fill="currentColor" size={20} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <h4 className="text-xl font-black text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 transition-colors">{playlist.name}</h4>
+                                    <p className="text-sm text-gray-500 line-clamp-1">{playlist.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="space-y-8">
+                            <div className="bg-gray-50 dark:bg-white/5 p-8 rounded-[40px] flex flex-col md:flex-row gap-8 items-start">
+                                <div className="w-full md:w-64 aspect-video rounded-3xl overflow-hidden bg-gray-200 shadow-2xl">
+                                    {selectedPlaylist.thumbnail ? (
+                                        <img src={selectedPlaylist.thumbnail} className="w-full h-full object-cover" alt="" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-slate-800"><ListMusic size={48} className="text-white/20" /></div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-start">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedPlaylist(null);
+                                                setIsEditingPlaylist(false);
+                                            }}
+                                            className="text-sm font-bold text-blue-600 mb-4 flex items-center gap-1 hover:gap-2 transition-all"
+                                        >
+                                            <ChevronRight size={16} className="rotate-180" /> Back to Playlists
+                                        </button>
+                                        {isOwner && (
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => {
+                                                        setIsEditingPlaylist(!isEditingPlaylist);
+                                                        setEditPlaylistData({ name: selectedPlaylist.name, description: selectedPlaylist.description });
+                                                    }}
+                                                    className={`p-3 rounded-2xl shadow-sm transition-all ${isEditingPlaylist ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}
+                                                    title="Edit Playlist"
+                                                >
+                                                    <Edit3 size={20} />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeletePlaylist(selectedPlaylist._id)}
+                                                    className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                    title="Delete Playlist"
+                                                >
+                                                    <Trash2 size={20} />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {isEditingPlaylist ? (
+                                        <form onSubmit={handleUpdatePlaylist} className="mt-4 space-y-4 max-w-xl">
+                                            <input
+                                                className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl px-6 py-4 outline-none focus:ring-4 focus:ring-blue-500/10 font-bold text-2xl dark:text-white"
+                                                value={editPlaylistData.name}
+                                                onChange={e => setEditPlaylistData({ ...editPlaylistData, name: e.target.value })}
+                                                placeholder="Playlist Name"
+                                                required
+                                            />
+                                            <textarea
+                                                className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl px-6 py-4 outline-none focus:ring-4 focus:ring-blue-500/10 dark:text-gray-300 h-32 resize-none"
+                                                value={editPlaylistData.description}
+                                                onChange={e => setEditPlaylistData({ ...editPlaylistData, description: e.target.value })}
+                                                placeholder="Description"
+                                                required
+                                            />
+                                            <div className="flex gap-3">
+                                                <button type="submit" className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20">Save Changes</button>
+                                                <button type="button" onClick={() => setIsEditingPlaylist(false)} className="px-8 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Cancel</button>
+                                            </div>
+                                        </form>
+                                    ) : (
+                                        <>
+                                            <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2">{selectedPlaylist.name}</h2>
+                                            <p className="text-gray-500 dark:text-gray-400 max-w-2xl">{selectedPlaylist.description}</p>
+                                        </>
+                                    )}
+                                    <div className="mt-6 flex items-center gap-4">
+                                        <span className="text-xs font-black uppercase tracking-widest bg-blue-100 text-blue-600 px-3 py-1 rounded-full">
+                                            {selectedPlaylist.totalVideos} Videos
+                                        </span>
+                                        <span className="text-xs text-gray-400">Created {new Date(selectedPlaylist.createdAt).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {selectedPlaylist.videos?.map((video: any) => (
+                                    <VideoCard
+                                        key={video._id}
+                                        video={video}
+                                        onClick={playVideo}
+                                        onToggleLike={handleToggleLike}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
